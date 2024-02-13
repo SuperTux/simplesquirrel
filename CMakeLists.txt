@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 
 project (simplesquirrel)
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
@@ -14,29 +15,16 @@ option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_INSTALL "Install library" ON)
 
-# Add third party libraries
-if(NOT DEFINED SQUIRREL_LIBRARIES AND NOT DEFINED SQSTDLIB_LIBRARIES)
-  ExternalProject_Add(SQUIRREL
-    DOWNLOAD_COMMAND ""
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/squirrel
-    CMAKE_ARGS -DDISABLE_STATIC=OFF -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true
-    BUILD_COMMAND cmake --build . --config ${CMAKE_BUILD_TYPE}
-    INSTALL_COMMAND ""
-    TEST_COMMAND ""
-  )
+option(USE_SQ_SUBMODULE "Use the squirrel submodule as opposed to the system squirrel" ON)
 
-  if(MSVC)
-    set(SQUIRREL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/squirrel/include)
-    set(SQUIRREL_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/SQUIRREL-prefix/src/SQUIRREL-build/squirrel/${CMAKE_BUILD_TYPE}/squirrel_static.lib)
-    set(SQSTDLIB_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/SQUIRREL-prefix/src/SQUIRREL-build/sqstdlib/${CMAKE_BUILD_TYPE}/sqstdlib_static.lib)
-  else()
-    set(SQUIRREL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/squirrel/include)
-    set(SQUIRREL_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/SQUIRREL-prefix/src/SQUIRREL-build/squirrel/libsquirrel_static.a)
-    set(SQSTDLIB_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/SQUIRREL-prefix/src/SQUIRREL-build/sqstdlib/libsqstdlib_static.a)
-  endif()
-
-  add_dependencies(${PROJECT_NAME} SQUIRREL)
-  add_dependencies(${PROJECT_NAME}_static SQUIRREL)
+# Add third party librarie
+if(USE_SQ_SUBMODULE)
+  set_property(GLOBAL PROPERTY DISABLE_DYNAMIC true)
+  set_property(GLOBAL PROPERTY SQ_DISABLE_INSTALLER true)
+  add_subdirectory("libs/squirrel")
+else()
+  find_library(SQUIRREL names squirrel)
+  find_library(SQUIRREL_STDLIB names sqstdlib)
 endif()
 
 # Grab the files
@@ -50,9 +38,15 @@ link_directories(${CMAKE_LIBRARY_PATH})
 # Add our library
 add_library(${PROJECT_NAME}_static STATIC ${SOURCES} ${HEADERS})
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+
+if(USE_SQ_SUBMODULE)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/squirrel/include)
+  target_link_libraries(${PROJECT_NAME} squirrel_static sqstdlib_static)
+else()
+  target_link_libraries(${PROJECT_NAME} squirrel sqstdlib)
+endif()
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE SSQ_EXPORTS=1 SSQ_DLL=1)
-target_link_libraries(${PROJECT_NAME} ${SQUIRREL_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} ${SQSTDLIB_LIBRARIES})
 
 set_target_properties(${PROJECT_NAME}_static PROPERTIES
   FOLDER "simplesquirrel/lib"
