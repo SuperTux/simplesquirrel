@@ -38,7 +38,7 @@ add_library(${PROJECT_NAME}_static STATIC ${SOURCES} ${HEADERS})
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
 if(USE_SQ_SUBMODULE)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/squirrel/include)
+  include_directories(${PROJECT_SOURCE_DIR}/libs/squirrel/include)
   target_link_libraries(${PROJECT_NAME} squirrel_static sqstdlib_static)
 else()
   target_link_libraries(${PROJECT_NAME} squirrel sqstdlib)
