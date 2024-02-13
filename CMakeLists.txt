@@ -35,6 +35,7 @@ link_directories(${CMAKE_LIBRARY_PATH})
 
 # Add our library
 add_library(${PROJECT_NAME}_static STATIC ${SOURCES} ${HEADERS})
+add_library(${PROJECT_NAME}-static ALIAS ${PROJECT_NAME}_static)
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
 if(USE_SQ_SUBMODULE)
