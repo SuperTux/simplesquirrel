@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-project (simplesquirrel)
+project(simplesquirrel)
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 # Some required properties
@@ -19,8 +19,6 @@ option(USE_SQ_SUBMODULE "Use the squirrel submodule as opposed to the system squ
 
 # Add third party libraries
 if(USE_SQ_SUBMODULE)
-  set_property(GLOBAL PROPERTY DISABLE_DYNAMIC true)
-  set_property(GLOBAL PROPERTY SQ_DISABLE_INSTALLER true)
   add_subdirectory("libs/squirrel")
 else()
   find_library(SQUIRREL names squirrel)
