@@ -17,7 +17,7 @@ option(BUILD_INSTALL "Install library" ON)
 
 option(USE_SQ_SUBMODULE "Use the squirrel submodule as opposed to the system squirrel" ON)
 
-# Add third party librarie
+# Add third party libraries
 if(USE_SQ_SUBMODULE)
   set_property(GLOBAL PROPERTY DISABLE_DYNAMIC true)
   set_property(GLOBAL PROPERTY SQ_DISABLE_INSTALLER true)
