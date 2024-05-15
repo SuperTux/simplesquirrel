@@ -41,9 +41,9 @@ add_library(${PROJECT_NAME}-static ALIAS ${PROJECT_NAME}_static)
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
 if(SSQ_USE_SQ_SUBMODULE)
-  target_link_libraries(${PROJECT_NAME} squirrel_static sqstdlib_static)
+  target_link_libraries(${PROJECT_NAME} PUBLIC squirrel_static sqstdlib_static)
 else()
-  target_link_libraries(${PROJECT_NAME} squirrel sqstdlib)
+  target_link_libraries(${PROJECT_NAME} PUBLIC squirrel sqstdlib)
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE SSQ_EXPORTS=1 SSQ_DLL=1)
