@@ -20,6 +20,7 @@ option(SSQ_USE_SQ_SUBMODULE "Use the squirrel submodule as opposed to the system
 # Add third party libraries
 if(SSQ_USE_SQ_SUBMODULE)
   add_subdirectory("libs/squirrel")
+  set(SQUIRREL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/libs/squirrel/include)
 else()
   find_library(SQUIRREL names squirrel)
   find_library(SQUIRREL_STDLIB names sqstdlib)
@@ -29,8 +30,9 @@ endif()
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/simplesquirrel/*.hpp)
 
-include_directories(${INCLUDE_DIRECTORIES} ${SQUIRREL_INCLUDE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(SSQ_TARGET_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                   ${SQUIRREL_INCLUDE_DIR})
+include_directories(${INCLUDE_DIRECTORIES} ${SSQ_TARGET_INCLUDE_DIRECTORIES})
 link_directories(${CMAKE_LIBRARY_PATH})
 
 # Add our library
@@ -39,7 +41,6 @@ add_library(${PROJECT_NAME}-static ALIAS ${PROJECT_NAME}_static)
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
 if(SSQ_USE_SQ_SUBMODULE)
-  include_directories(${PROJECT_SOURCE_DIR}/libs/squirrel/include)
   target_link_libraries(${PROJECT_NAME} squirrel_static sqstdlib_static)
 else()
   target_link_libraries(${PROJECT_NAME} squirrel sqstdlib)
@@ -49,11 +50,11 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE SSQ_EXPORTS=1 SSQ_DLL=1)
 
 set_target_properties(${PROJECT_NAME}_static PROPERTIES
   FOLDER "simplesquirrel/lib"
-  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  INTERFACE_INCLUDE_DIRECTORIES "${SSQ_TARGET_INCLUDE_DIRECTORIES}"
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES
   FOLDER "simplesquirrel/lib"
-  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  INTERFACE_INCLUDE_DIRECTORIES "${SSQ_TARGET_INCLUDE_DIRECTORIES}"
 )
 
 # Install
