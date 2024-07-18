@@ -211,8 +211,10 @@ namespace ssq {
         Object callFunc(const Function& func, const Object& env, Args&&... args) const {
             static const std::size_t params = sizeof...(Args);
 
-            if(func.getNumOfParams() != params){
-                throw RuntimeException(nullptr, "Number of arguments does not match");
+            const std::pair<unsigned int, unsigned int> paramsRequired = func.getNumOfParams();
+            if ((paramsRequired.first > 0 && params < paramsRequired.first) ||
+                (paramsRequired.second > 0 && params > paramsRequired.second)) {
+                throw RuntimeException(nullptr, "Incorrect number of arguments!");
             }
 
             auto top = sq_gettop(vm);

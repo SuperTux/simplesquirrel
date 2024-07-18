@@ -33,10 +33,10 @@ namespace ssq {
         */
         Function(Function&& other) NOEXCEPT;
         /**
-        * @brief Returns the number of parameters needed by the function
+        * @brief Returns the number of minimum and maximum parameters allowed by the function
         * @note This ignores the "this" pointer
         */
-        unsigned int getNumOfParams() const;
+        std::pair<unsigned int, unsigned int> getNumOfParams() const;
         /**
         * @brief Copy assingment operator
         */

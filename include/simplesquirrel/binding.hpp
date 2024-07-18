@@ -130,7 +130,7 @@ namespace ssq {
                 sq_newclosure(vm, &detail::classAllocatorNoRelease<T, Args...>, 1);
             }
 
-            sq_setparamscheck(vm, nparams + 1, params.c_str());
+            sq_setparamscheck(vm, nparams + 1, nparams + 1, params.c_str());
 
             // Add the constructor method
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
@@ -256,7 +256,7 @@ namespace ssq {
             paramPacker<void, Args...>(params);
 
             sq_newclosure(vm, &detail::func<1, R, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams + 1, params.c_str());
+            sq_setparamscheck(vm, nparams + 1, nparams + 1, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }
@@ -272,7 +272,7 @@ namespace ssq {
             paramPacker<void, Args...>(params);
 
             sq_newclosure(vm, &detail::func<0, R, HSQUIRRELVM, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams + 1, params.c_str());
+            sq_setparamscheck(vm, nparams + 1, nparams + 1, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }
@@ -289,7 +289,7 @@ namespace ssq {
             paramPacker<Args...>(params);
 
             sq_newclosure(vm, &detail::func<0, R, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams, params.c_str());
+            sq_setparamscheck(vm, nparams, nparams, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }
@@ -305,7 +305,7 @@ namespace ssq {
             paramPacker<Args...>(params);
 
             sq_newclosure(vm, &detail::func<-1, R, HSQUIRRELVM, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams, params.c_str());
+            sq_setparamscheck(vm, nparams, nparams, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }

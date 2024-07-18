@@ -20,16 +20,20 @@ namespace ssq {
             
     }
 
-    unsigned int Function::getNumOfParams() const {
-        SQInteger nparams;
+    std::pair<unsigned int, unsigned int> Function::getNumOfParams() const {
+        SQInteger nparamsmin;
+        SQInteger nparamsmax;
         SQInteger nfreevars;
         sq_pushobject(vm, obj);
-        if (SQ_FAILED(sq_getclosureinfo(vm, -1, &nparams, &nfreevars))) {
+        if (SQ_FAILED(sq_getclosureinfo(vm, -1, &nparamsmin, &nparamsmax, &nfreevars))) {
             sq_pop(vm, 1);
             throw RuntimeException(vm, "Getting function info failed!");
         }
         sq_pop(vm, 1);
-        return nparams -1;
+        return {
+          nparamsmin > 0 ? nparamsmin - 1 : 0,
+          nparamsmax > 0 ? nparamsmax - 1 : 0
+        };
     }
 
     Function& Function::operator = (const Function& other){
