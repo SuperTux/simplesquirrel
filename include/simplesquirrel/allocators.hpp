@@ -51,38 +51,42 @@ namespace ssq {
             return funcPtr->ptr->operator()(detail::pop<typename std::remove_reference<Args>::type>(vm, Is + 2)...);
         }
 
-        template<class T, class... Args>
+        template<class T, size_t ndefparams, class... Args>
         static SQInteger classAllocator(HSQUIRRELVM vm) {
-            static const std::size_t nparams = sizeof...(Args);
-            int off = nparams;
+            constexpr std::size_t nparams = sizeof...(Args);
 
             FuncPtr<T*(Args...)>* funcPtr;
             sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
+            sq_pop(vm, 1);
 
-            T* p = callConstructor<T, Args...>(vm, funcPtr, index_range<0, sizeof...(Args)>());
-            sq_setinstanceup(vm, -2 -off, p);
-            sq_setreleasehook(vm, -2 -off, &detail::classDestructor<T>);
+            removeDefaultArgumentValues<1, sizeof...(Args), ndefparams>(vm);
+            T* p = callConstructor(vm, funcPtr, index_range<0, sizeof...(Args)>());
+            sq_setinstanceup(vm, 1, p);
+            sq_setreleasehook(vm, 1, &detail::classDestructor<T>);
 
-            sq_getclass(vm, -2 -off);
+            sq_getclass(vm, 1);
             sq_settypetag(vm, -1, reinterpret_cast<SQUserPointer>(typeid(T*).hash_code()));
             sq_pop(vm, 1); // Pop class
+
             return nparams;
         }
 
-        template<class T, class... Args>
+        template<class T, size_t ndefparams, class... Args>
         static SQInteger classAllocatorNoRelease(HSQUIRRELVM vm) {
-            static const std::size_t nparams = sizeof...(Args);
-            int off = nparams;
+            constexpr std::size_t nparams = sizeof...(Args);
 
             FuncPtr<T*(Args...)>* funcPtr;
             sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
+            sq_pop(vm, 1);
 
-            T* p = callConstructor<T, Args...>(vm, funcPtr, index_range<0, sizeof...(Args)>());
-            sq_setinstanceup(vm, -2 -off, p);
+            removeDefaultArgumentValues<1, sizeof...(Args), ndefparams>(vm);
+            T* p = callConstructor(vm, funcPtr, index_range<0, sizeof...(Args)>());
+            sq_setinstanceup(vm, 1, p);
 
-            sq_getclass(vm, -2 -off);
+            sq_getclass(vm, 1);
             sq_settypetag(vm, -1, reinterpret_cast<SQUserPointer>(typeid(T*).hash_code()));
             sq_pop(vm, 1); // Pop class
+
             return nparams;
         }
 

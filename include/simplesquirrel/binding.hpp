@@ -90,12 +90,14 @@ namespace ssq {
             sq_setreleasehook(vm, -1, &detail::funcReleaseHook<Ret, Args...>);
         }
 
-        template<typename T, typename... Args>
-        static Object addClass(HSQUIRRELVM vm, const char* name, const std::function<T*(Args...)>& allocator, HSQOBJECT& base, bool release = true) {
+        template<typename T, typename... Args, typename... DefaultArgs>
+        static Object addClass(HSQUIRRELVM vm, const char* name, const std::function<T*(Args...)>& allocator,
+                               const DefaultArguments<DefaultArgs...> defaultArgs, HSQOBJECT& base, bool release = true) {
             static_assert(std::is_base_of<ExposableClass, T>::value, "Exposed classes must inherit ssq::ExposableClass.");
 
             static const auto hashCode = typeid(T*).hash_code();
-            static const std::size_t nparams = sizeof...(Args);
+            constexpr std::size_t nparams = sizeof...(Args);
+            constexpr std::size_t ndefparams = sizeof...(DefaultArgs);
 
             Object clsObj(vm);
             
@@ -121,16 +123,18 @@ namespace ssq {
 
             sq_pushstring(vm, "constructor", -1);
             bindUserData<T*>(vm, allocator);
+            push(vm, defaultArgs);
+
             std::string params;
             paramPacker<T*, Args...>(params);
 
             if (release) {
-                sq_newclosure(vm, &detail::classAllocator<T, Args...>, 1);
+                sq_newclosure(vm, &detail::classAllocator<T, ndefparams, Args...>, ndefparams + 1);
             } else {
-                sq_newclosure(vm, &detail::classAllocatorNoRelease<T, Args...>, 1);
+                sq_newclosure(vm, &detail::classAllocatorNoRelease<T, ndefparams, Args...>, ndefparams + 1);
             }
 
-            sq_setparamscheck(vm, nparams + 1, nparams + 1, params.c_str());
+            sq_setparamscheck(vm, nparams - ndefparams + 1, nparams + 1, params.c_str());
 
             // Add the constructor method
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
@@ -187,13 +191,15 @@ namespace ssq {
         }
 
         /* Functions with return values */
-        template<int offet, typename R, typename... Args>
+        template<int offet, typename R, size_t ndefparams, typename... Args>
         struct func {
             static SQInteger global(HSQUIRRELVM vm) {
                 try {
                     FuncPtr<R(Args...)>* funcPtr;
                     sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
+                    sq_pop(vm, 1);
 
+                    removeDefaultArgumentValues<offet, sizeof...(Args), ndefparams>(vm);
                     push(vm, std::forward<R>(callGlobal(vm, funcPtr, index_range<offet, sizeof...(Args) + offet>())));
                     return 1;
                 } catch (std::exception& e) {
@@ -201,13 +207,15 @@ namespace ssq {
                 }
             }
         };
-        template<int offet, typename R, typename... Args>
-        struct func<offet, std::vector<R>, Args...> {
+        template<int offet, typename R, size_t ndefparams, typename... Args>
+        struct func<offet, std::vector<R>, ndefparams, Args...> {
             static SQInteger global(HSQUIRRELVM vm) {
                 try {
                     FuncPtr<std::vector<R>(Args...)>* funcPtr;
                     sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
+                    sq_pop(vm, 1);
 
+                    removeDefaultArgumentValues<offet, sizeof...(Args), ndefparams>(vm);
                     push<R>(vm, std::forward<std::vector<R>>(callGlobal(vm, funcPtr, index_range<offet, sizeof...(Args) + offet>())));
                     return 1;
                 } catch (std::exception& e) {
@@ -216,13 +224,15 @@ namespace ssq {
             }
         };
         /* Function without a return value */
-        template<int offet, typename... Args>
-        struct func<offet, void, Args...> {
+        template<int offet, size_t ndefparams, typename... Args>
+        struct func<offet, void, ndefparams, Args...> {
             static SQInteger global(HSQUIRRELVM vm) {
                 try {
                     FuncPtr<void(Args...)>* funcPtr;
                     sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
+                    sq_pop(vm, 1);
 
+                    removeDefaultArgumentValues<offet, sizeof...(Args), ndefparams>(vm);
                     callGlobal(vm, funcPtr, index_range<offet, sizeof...(Args) + offet>());
                     return 0;
                 } catch (std::exception& e) {
@@ -231,13 +241,15 @@ namespace ssq {
             }
         };
         /* Function with a return value, signifying whether it has pushed returned data to the Squirrel stack */
-        template<int offet, typename... Args>
-        struct func<offet, SQInteger, Args...> {
+        template<int offet, size_t ndefparams, typename... Args>
+        struct func<offet, SQInteger, ndefparams, Args...> {
             static SQInteger global(HSQUIRRELVM vm) {
                 try {
                     FuncPtr<SQInteger(Args...)>* funcPtr;
                     sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
+                    sq_pop(vm, 1);
 
+                    removeDefaultArgumentValues<offet, sizeof...(Args), ndefparams>(vm);
                     return callGlobal(vm, funcPtr, index_range<offet, sizeof...(Args) + offet>());
                 } catch (std::exception& e) {
                     return sq_throwerror(vm, e.what());
@@ -245,67 +257,83 @@ namespace ssq {
             }
         };
 
-        template<typename R, typename... Args>
-        static void addFunc(HSQUIRRELVM vm, const char* name, const std::function<R(Args...)>& func) {
-            static const std::size_t nparams = sizeof...(Args);
+        template<typename R, typename... Args, typename... DefaultArgs>
+        static void addFunc(HSQUIRRELVM vm, const char* name, const std::function<R(Args...)>& func,
+                            const DefaultArguments<DefaultArgs...>& defaultArgs) {
+            constexpr std::size_t nparams = sizeof...(Args);
+            constexpr std::size_t ndefparams = sizeof...(DefaultArgs);
 
             sq_pushstring(vm, name, strlen(name));
 
             bindUserData(vm, func);
+            push(vm, defaultArgs);
+
             std::string params;
             paramPacker<void, Args...>(params);
 
-            sq_newclosure(vm, &detail::func<1, R, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams + 1, nparams + 1, params.c_str());
+            sq_newclosure(vm, &detail::func<1, R, ndefparams, Args...>::global, ndefparams + 1);
+            sq_setparamscheck(vm, nparams - ndefparams + 1, nparams + 1, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }
         }
-        template<typename R, typename... Args>
-        static void addFunc(HSQUIRRELVM vm, const char* name, const std::function<R(HSQUIRRELVM, Args...)>& func) {
-            static const std::size_t nparams = sizeof...(Args);
+        template<typename R, typename... Args, typename... DefaultArgs>
+        static void addFunc(HSQUIRRELVM vm, const char* name, const std::function<R(HSQUIRRELVM, Args...)>& func,
+                            const DefaultArguments<DefaultArgs...>& defaultArgs) {
+            constexpr std::size_t nparams = sizeof...(Args);
+            constexpr std::size_t ndefparams = sizeof...(DefaultArgs);
 
             sq_pushstring(vm, name, strlen(name));
 
             bindUserData(vm, func);
+            push(vm, defaultArgs);
+
             std::string params;
             paramPacker<void, Args...>(params);
 
-            sq_newclosure(vm, &detail::func<0, R, HSQUIRRELVM, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams + 1, nparams + 1, params.c_str());
+            sq_newclosure(vm, &detail::func<0, R, ndefparams, HSQUIRRELVM, Args...>::global, ndefparams + 1);
+            sq_setparamscheck(vm, nparams - ndefparams + 1, nparams + 1, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }
         }
 
-        template<typename R, typename... Args>
-        static void addMemberFunc(HSQUIRRELVM vm, const char* name, const std::function<R(Args...)>& func, bool isStatic) {
-            static const std::size_t nparams = sizeof...(Args);
+        template<typename R, typename... Args, typename... DefaultArgs>
+        static void addMemberFunc(HSQUIRRELVM vm, const char* name, const std::function<R(Args...)>& func,
+                                  const DefaultArguments<DefaultArgs...>& defaultArgs, bool isStatic) {
+            constexpr std::size_t nparams = sizeof...(Args);
+            constexpr std::size_t ndefparams = sizeof...(DefaultArgs);
 
             sq_pushstring(vm, name, strlen(name));
 
             bindUserData(vm, func);
+            push(vm, defaultArgs);
+
             std::string params;
             paramPacker<Args...>(params);
 
-            sq_newclosure(vm, &detail::func<0, R, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams, nparams, params.c_str());
+            sq_newclosure(vm, &detail::func<0, R, ndefparams, Args...>::global, ndefparams + 1);
+            sq_setparamscheck(vm, nparams - ndefparams, nparams, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }
         }
-        template<typename R, typename... Args>
-        static void addMemberFunc(HSQUIRRELVM vm, const char* name, const std::function<R(HSQUIRRELVM, Args...)>& func, bool isStatic) {
-            static const std::size_t nparams = sizeof...(Args);
+        template<typename R, typename... Args, typename... DefaultArgs>
+        static void addMemberFunc(HSQUIRRELVM vm, const char* name, const std::function<R(HSQUIRRELVM, Args...)>& func,
+                                  const DefaultArguments<DefaultArgs...>& defaultArgs, bool isStatic) {
+            constexpr std::size_t nparams = sizeof...(Args);
+            constexpr std::size_t ndefparams = sizeof...(DefaultArgs);
 
             sq_pushstring(vm, name, strlen(name));
 
             bindUserData(vm, func);
+            push(vm, defaultArgs);
+
             std::string params;
             paramPacker<Args...>(params);
 
-            sq_newclosure(vm, &detail::func<-1, R, HSQUIRRELVM, Args...>::global, 1);
-            sq_setparamscheck(vm, nparams, nparams, params.c_str());
+            sq_newclosure(vm, &detail::func<-1, R, ndefparams, HSQUIRRELVM, Args...>::global, ndefparams + 1);
+            sq_setparamscheck(vm, nparams - ndefparams, nparams, params.c_str());
             if(SQ_FAILED(sq_newslot(vm, -3, SQFalse))) {
                 throw RuntimeException(vm, "Failed to bind function!");
             }

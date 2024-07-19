@@ -66,11 +66,11 @@ namespace ssq {
         * @brief Adds a new class type, which could inherit another existing one, to this table
         * @returns Class object references the added class
         */
-        template<typename T, typename... Args>
+        template<typename T, typename... Args, typename... DefaultArgs>
         Class addClass(const char* name, const std::function<T*(Args...)>& allocator = std::bind(&detail::defaultClassAllocator<T>),
-                       bool release = true, Class base = Class()) {
+                       const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool release = true, Class base = Class()) {
             sq_pushobject(vm, obj);
-            Class cls(detail::addClass(vm, name, allocator, base.getRaw(), release));
+            Class cls(detail::addClass(vm, name, allocator, defaultArgs, base.getRaw(), release));
             sq_pop(vm, 1);
             return cls;
         }
@@ -78,18 +78,20 @@ namespace ssq {
         * @brief Adds a new class type, which could inherit another existing one, to this table
         * @returns Class object references the added class
         */
-        template<typename T, typename... Args>
-        Class addClass(const char* name, const Class::Ctor<T(Args...)>& constructor, bool release = true, Class base = Class()) {
+        template<typename T, typename... Args, typename... DefaultArgs>
+        Class addClass(const char* name, const Class::Ctor<T(Args...)>& constructor,
+                       const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool release = true, Class base = Class()) {
             const std::function<T*(Args...)> func = &constructor.allocate;
-            return addClass<T>(name, func, release, std::move(base));
+            return addClass<T>(name, func, defaultArgs, release, std::move(base));
         }
         /**
         * @brief Adds a new class type, which could inherit another existing one, to this table
         * @returns Class object references the added class
         */
-        template<typename F>
-        Class addClass(const char* name, const F& lambda, bool release = true, Class base = Class()) {
-            return addClass(name, detail::make_function(lambda), release, std::move(base));
+        template<typename F, typename... DefaultArgs>
+        Class addClass(const char* name, const F& lambda, const DefaultArguments<DefaultArgs...> defaultArgs = {},
+                       bool release = true, Class base = Class()) {
+            return addClass(name, detail::make_function(lambda), defaultArgs, release, std::move(base));
         }
         /**
         * @brief Adds a new abstract class type, which could inherit another existing one, to this table
@@ -106,11 +108,11 @@ namespace ssq {
         * @brief Adds a new function type to this table
         * @returns Function object references the added function
         */
-        template<typename R, typename... Args>
-        Function addFunc(const char* name, const std::function<R(Args...)>& func){
+        template<typename R, typename... Args, typename... DefaultArgs>
+        Function addFunc(const char* name, const std::function<R(Args...)>& func, const DefaultArguments<DefaultArgs...> defaultArgs = {}){
             Function ret(vm);
             sq_pushobject(vm, obj);
-            detail::addFunc(vm, name, func);
+            detail::addFunc(vm, name, func, defaultArgs);
             sq_pop(vm, 1);
             return ret;
         }
@@ -118,9 +120,9 @@ namespace ssq {
         * @brief Adds a new lambda type to this table
         * @returns Function object that references the added function
         */
-        template<typename F>
-        Function addFunc(const char* name, const F& lambda) {
-            return addFunc(name, detail::make_function(lambda));
+        template<typename F, typename... DefaultArgs>
+        Function addFunc(const char* name, const F& lambda, const DefaultArguments<DefaultArgs...> defaultArgs = {}) {
+            return addFunc(name, detail::make_function(lambda), defaultArgs);
         }
         /**
          * @brief Adds a new key-value pair to this table

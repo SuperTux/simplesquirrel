@@ -15,6 +15,9 @@ namespace ssq {
     class VM;
     class SqWeakRef;
 
+    template<typename... Args>
+    using DefaultArguments = std::tuple<Args...>;
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
     namespace detail {
         SSQ_API void addClassObj(size_t hashCode, const HSQOBJECT& obj);
@@ -496,6 +499,33 @@ namespace ssq {
                     sq_pop(vm, 2);
                     throw RuntimeException(vm, "Failed to push value to the back of array!");
                 }
+            }
+        }
+
+        template<std::size_t I = 0, typename... Args>
+        inline typename std::enable_if<I == sizeof...(Args), void>::type
+        push(HSQUIRRELVM, const DefaultArguments<Args...>&) {}
+
+        template<std::size_t I = 0, typename... Args>
+        inline typename std::enable_if<I < sizeof...(Args), void>::type
+        push(HSQUIRRELVM vm, const DefaultArguments<Args...>& values)
+        {
+            push(vm, std::get<sizeof...(Args) - I - 1>(values));
+            push<I + 1, Args...>(vm, values);
+        }
+
+        template<int offet, size_t nparams, size_t ndefparams>
+        inline typename std::enable_if<nparams == 0, void>::type
+        removeDefaultArgumentValues(HSQUIRRELVM) {}
+
+        template<int offet, size_t nparams, size_t ndefparams>
+        inline typename std::enable_if<(nparams > 0), void>::type
+        removeDefaultArgumentValues(HSQUIRRELVM vm) {
+            // Remove the default values of provided optional arguments from the stack
+            const size_t providedOptArgs = sq_gettop(vm) - nparams - offet;
+            const size_t removeIdx = nparams - ndefparams + providedOptArgs + offet + 1;
+            for (size_t i = 0; i < providedOptArgs; ++i) {
+                sq_remove(vm, removeIdx);
             }
         }
     }

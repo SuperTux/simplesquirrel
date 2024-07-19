@@ -64,15 +64,17 @@ namespace ssq {
         * @param name Name of the function to add
         * @param func std::function that contains "this" pointer to the class type followed
         * by any number of arguments with any type
+        * @param defaultArgs A list of default values for last optional arguments
+        * @param isStatic Determines whether the function is going to be static
         * @throws RuntimeException if VM is invalid
         * @returns Function object references the added function
         */
-        template <typename Return, typename Object, typename... Args>
-        Function addFunc(const char* name, const std::function<Return(Object*, Args...)>& func, bool isStatic = false) {
+        template <typename Return, typename Object, typename... Args, typename... DefaultArgs>
+        Function addFunc(const char* name, const std::function<Return(Object*, Args...)>& func, const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             if (vm == nullptr) throw RuntimeException(nullptr, "VM is not initialised");
             Function ret(vm);
             sq_pushobject(vm, obj);
-            detail::addMemberFunc(vm, name, func, isStatic);
+            detail::addMemberFunc(vm, name, func, defaultArgs, isStatic);
             sq_pop(vm, 1);
             return ret;
         }
@@ -80,37 +82,43 @@ namespace ssq {
         * @brief Adds a new function type to this class
         * @param name Name of the function to add
         * @param memfunc Pointer to member function
+        * @param defaultArgs A list of default values for last optional arguments
+        * @param isStatic Determines whether the function is going to be static
         * @throws RuntimeException if VM is invalid
         * @returns Function object references the added function
         */
-        template <typename Return, typename Object, typename... Args>
-        Function addFunc(const char* name, Return(Object::*memfunc)(Args...), bool isStatic = false) {
+        template <typename Return, typename Object, typename... Args, typename... DefaultArgs>
+        Function addFunc(const char* name, Return(Object::*memfunc)(Args...), const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             auto func = std::function<Return(Object*, Args...)>(std::mem_fn(memfunc));
-            return addFunc(name, func, isStatic);
+            return addFunc(name, func, defaultArgs, isStatic);
         }
         /**
         * @brief Adds a new function type to this class
         * @param name Name of the function to add
         * @param memfunc Pointer to constant member function
+        * @param defaultArgs A list of default values for last optional arguments
+        * @param isStatic Determines whether the function is going to be static
         * @throws RuntimeException if VM is invalid
         * @returns Function object references the added function
         */
-        template <typename Return, typename Object, typename... Args>
-        Function addFunc(const char* name, Return(Object::*memfunc)(Args...) const, bool isStatic = false) {
+        template <typename Return, typename Object, typename... Args, typename... DefaultArgs>
+        Function addFunc(const char* name, Return(Object::*memfunc)(Args...) const, const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             auto func = std::function<Return(Object*, Args...)>(std::mem_fn(memfunc));
-            return addFunc(name, func, isStatic);
+            return addFunc(name, func, defaultArgs, isStatic);
         }
         /**
         * @brief Adds a new function type to this class
         * @param name Name of the function to add
         * @param lambda Lambda function that contains "this" pointer to the class type followed
         * by any number of arguments with any type
+        * @param defaultArgs A list of default values for last optional arguments
+        * @param isStatic Determines whether the function is going to be static
         * @throws RuntimeException if VM is invalid
         * @returns Function object references the added function
         */
-        template<typename F>
-        Function addFunc(const char* name, const F& lambda, bool isStatic = false) {
-            return addFunc(name, detail::make_function(lambda), isStatic);
+        template<typename F, typename... DefaultArgs>
+        Function addFunc(const char* name, const F& lambda, const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
+            return addFunc(name, detail::make_function(lambda), defaultArgs, isStatic);
         }
         template<typename T, typename V>
         void addVar(const std::string& name, V T::* ptr, bool isStatic = false) {

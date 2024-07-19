@@ -221,6 +221,10 @@ into the root table and can be used across all scripts compiled within the VM.
 The function arguments are deduced at compile time. No std::tuple, no std::any, 
 just good old metaprogramming.
 
+C++ functions can also be exposed to Squirrel with default arguments.
+To specify the values of default arguments, use `ssq::DefaultArguments<TYPES...>(VALUES...)`.
+Provide it as the third parameter (after the function) of `addFunc()`.
+
 ```cpp
 #include <simplesquirrel/simplesquirrel.hpp>
 
@@ -240,12 +244,14 @@ int main(){
         std::placeholders::_1, 
         std::placeholders::_2
     );
-    vm.addFunc("myCppFunc2", func);
+    vm.addFunc("myCppFunc2", func,
+      ssq::DefaultArguments<int>(6)); // Set a default value for the last integer argument
 
     // Bind via lambda
-    vm.addFunc("myCppFuncLambda, [](int a, int b) -> std::string {
-        return std::to_string(a + b);
-    });
+    vm.addFunc("myCppFuncLambda, [](int a, int b, int c) -> std::string {
+          return std::to_string(a + b + c);
+      },
+      ssq::DefaultArguments<int, int>(3, 10)); // Set default values for the last two integer arguments
 
     return 0;
 }
@@ -317,6 +323,9 @@ Squirrel user data. User data can be moved around, pushed to Squirrel or returne
 cannot be manipulated, has no methods, and is created via copy. For example, you won't be able 
 to use `std::unique_ptr` as userdata because it does not allow a copy.
 
+Class constructors also support default arguments using `ssq::DefaultArguments<TYPES...>(VALUES...)`.
+Provide it as the third parameter (after the constructor function) of `addClass()`.
+
 ```cpp
 #include <simplesquirrel/simplesquirrel.hpp>
 
@@ -336,7 +345,8 @@ public:
     }
 
     static void expose(ssq::VM& vm) {
-        ssq::Class cls = vm.addClass("Foo", ssq::Class::Ctor<Foo(std::string)>());
+        ssq::Class cls = vm.addClass("Foo", ssq::Class::Ctor<Foo(std::string)>(),
+          ssq::DefaultArguments<std::string>("Hello, World!")); // Set a default value for the class constructor string argument
 
         // You can also use lambdas (or std::function) to define constructor
         // The function has to return pointer to the new instance
