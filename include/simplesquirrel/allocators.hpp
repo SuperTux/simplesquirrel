@@ -59,8 +59,8 @@ namespace ssq {
             sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
             sq_pop(vm, 1);
 
-            removeDefaultArgumentValues<1, sizeof...(Args), ndefparams>(vm);
-            T* p = callConstructor(vm, funcPtr, index_range<0, sizeof...(Args)>());
+            removeDefaultArgumentValues<1, nparams, ndefparams>(vm);
+            T* p = callConstructor(vm, funcPtr, index_range<0, nparams>());
             sq_setinstanceup(vm, 1, p);
             sq_setreleasehook(vm, 1, &detail::classDestructor<T>);
 
@@ -79,8 +79,8 @@ namespace ssq {
             sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
             sq_pop(vm, 1);
 
-            removeDefaultArgumentValues<1, sizeof...(Args), ndefparams>(vm);
-            T* p = callConstructor(vm, funcPtr, index_range<0, sizeof...(Args)>());
+            removeDefaultArgumentValues<1, nparams, ndefparams>(vm);
+            T* p = callConstructor(vm, funcPtr, index_range<0, nparams>());
             sq_setinstanceup(vm, 1, p);
 
             sq_getclass(vm, 1);
