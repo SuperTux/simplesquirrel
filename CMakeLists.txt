@@ -30,7 +30,7 @@ endif()
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/simplesquirrel/*.hpp)
 
-include_directories(${INCLUDE_DIRECTORIES} SYSTEM ${SQUIRREL_INCLUDE_DIR})
+include_directories(SYSTEM ${INCLUDE_DIRECTORIES} ${SQUIRREL_INCLUDE_DIR})
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/include)
 link_directories(${CMAKE_LIBRARY_PATH})
 
