@@ -68,7 +68,7 @@ namespace ssq {
         */
         template<typename T, typename... Args, typename... DefaultArgs>
         Class addClass(const char* name, const std::function<T*(Args...)>& allocator = std::bind(&detail::defaultClassAllocator<T>),
-                       const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool release = true, Class base = Class()) {
+                       const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}, bool release = true, Class base = Class()) {
             sq_pushobject(vm, obj);
             Class cls(detail::addClass(vm, name, allocator, defaultArgs, base.getRaw(), release));
             sq_pop(vm, 1);
@@ -80,7 +80,7 @@ namespace ssq {
         */
         template<typename T, typename... Args, typename... DefaultArgs>
         Class addClass(const char* name, const Class::Ctor<T(Args...)>& constructor,
-                       const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool release = true, Class base = Class()) {
+                       const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}, bool release = true, Class base = Class()) {
             const std::function<T*(Args...)> func = &constructor.allocate;
             return addClass<T>(name, func, defaultArgs, release, std::move(base));
         }
@@ -89,7 +89,7 @@ namespace ssq {
         * @returns Class object references the added class
         */
         template<typename F, typename... DefaultArgs>
-        Class addClass(const char* name, const F& lambda, const DefaultArguments<DefaultArgs...> defaultArgs = {},
+        Class addClass(const char* name, const F& lambda, const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {},
                        bool release = true, Class base = Class()) {
             return addClass(name, detail::make_function(lambda), defaultArgs, release, std::move(base));
         }
@@ -109,7 +109,7 @@ namespace ssq {
         * @returns Function object references the added function
         */
         template<typename R, typename... Args, typename... DefaultArgs>
-        Function addFunc(const char* name, const std::function<R(Args...)>& func, const DefaultArguments<DefaultArgs...> defaultArgs = {}){
+        Function addFunc(const char* name, const std::function<R(Args...)>& func, const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}){
             Function ret(vm);
             sq_pushobject(vm, obj);
             detail::addFunc(vm, name, func, defaultArgs);
@@ -121,7 +121,7 @@ namespace ssq {
         * @returns Function object that references the added function
         */
         template<typename F, typename... DefaultArgs>
-        Function addFunc(const char* name, const F& lambda, const DefaultArguments<DefaultArgs...> defaultArgs = {}) {
+        Function addFunc(const char* name, const F& lambda, const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}) {
             return addFunc(name, detail::make_function(lambda), defaultArgs);
         }
         /**

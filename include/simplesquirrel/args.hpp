@@ -1,5 +1,6 @@
 #pragma once
 
+#include "allocators.hpp"
 #include "exceptions.hpp"
 #include "exposable_class.hpp"
 
@@ -15,27 +16,10 @@ namespace ssq {
     class VM;
     class SqWeakRef;
 
-    template<typename... Args>
-    using DefaultArguments = std::tuple<Args...>;
-
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
     namespace detail {
         SSQ_API void addClassObj(size_t hashCode, const HSQOBJECT& obj);
         SSQ_API const HSQOBJECT& getClassObj(size_t hashCode);
-
-        template<class T>
-        static SQInteger classDestructor(SQUserPointer ptr, SQInteger size) {
-            T* p = static_cast<T*>(ptr);
-            delete p;
-            return 0;
-        }
-
-        template<class T>
-        static SQInteger classPtrDestructor(SQUserPointer ptr, SQInteger size) {
-            T** p = static_cast<T**>(ptr);
-            delete *p;
-            return 0;
-        }
 
         inline void checkType(HSQUIRRELVM vm, SQInteger index, SQObjectType expected) {
             auto type = sq_gettype(vm, index);
@@ -53,6 +37,7 @@ namespace ssq {
             if ((allow_bool ? type != OT_BOOL : true) && type != OT_INTEGER && type != OT_FLOAT)
               throw TypeException("bad cast", allow_bool ? "BOOL|INTEGER|FLOAT" : "INTEGER|FLOAT", typeToStr(Type(type)));
         }
+
 
         template<typename T> inline typename std::enable_if<std::is_base_of<ExposableClass, T>::value, T>::type
         popInstance(HSQUIRRELVM vm, SQUserPointer ptr) {
@@ -278,15 +263,44 @@ namespace ssq {
         }
 #endif
 
-        template <typename T> inline typename std::enable_if<!std::is_pointer<T>::value, T>::type
-        pop(HSQUIRRELVM vm, SQInteger index) { 
-            return popValue<typename std::remove_cv<T>::type>(vm, index); 
+        template<typename T>
+        inline typename std::enable_if<!std::is_pointer<T>::value, T>::type
+        pop(HSQUIRRELVM vm, SQInteger index) {
+            return popValue<typename std::remove_cv<T>::type>(vm, index);
         }
 
-        template <typename T> inline typename std::enable_if<std::is_pointer<T>::value, T>::type
-        pop(HSQUIRRELVM vm, SQInteger index) { 
+        template<int defaultIndex, typename T, typename... Args>
+        inline typename std::enable_if<!std::is_pointer<T>::value && (defaultIndex < 0), T>::type
+        pop(HSQUIRRELVM vm, SQInteger index, const DefaultArgumentsImpl<Args...>&) {
+            return popValue<typename std::remove_cv<T>::type>(vm, index);
+        }
+
+        template<int defaultIndex, typename T, typename... Args>
+        inline typename std::enable_if<!std::is_pointer<T>::value && (defaultIndex >= 0), T>::type
+        pop(HSQUIRRELVM vm, SQInteger index, const DefaultArgumentsImpl<Args...>& defaultArgs) {
+            try {
+                return popValue<typename std::remove_cv<T>::type>(vm, index);
+            } catch (const TypeException&) {
+                return std::get<defaultIndex>(defaultArgs);
+            }
+        }
+
+        template<typename T>
+        inline typename std::enable_if<std::is_pointer<T>::value, T>::type
+        pop(HSQUIRRELVM vm, SQInteger index) {
             return popPointer<T>(vm, index);
         }
+
+        template<int defaultIndex, typename T, typename... Args>
+        inline typename std::enable_if<std::is_pointer<T>::value && (defaultIndex < 0), T>::type
+        pop(HSQUIRRELVM vm, SQInteger index, const DefaultArgumentsImpl<Args...>&) {
+            return popPointer<T>(vm, index);
+        }
+
+        template<int defaultIndex, typename T, typename... Args>
+        inline typename std::enable_if<std::is_pointer<T>::value && (defaultIndex >= 0), T>::type
+        pop(HSQUIRRELVM, SQInteger, const DefaultArgumentsImpl<Args...>&) = delete;
+
 
         template<typename T>
         inline void pushByCopy(HSQUIRRELVM vm, const T& value) {

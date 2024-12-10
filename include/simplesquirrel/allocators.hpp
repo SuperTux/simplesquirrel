@@ -1,116 +1,42 @@
 #pragma once
 
-#include "object.hpp"
-#include "args.hpp"
-#include <functional>
+#include "util.hpp"
 
 namespace ssq {
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
     namespace detail {
-        template <size_t... Is>
-        struct index_list {
-        };
-
-        // Declare primary template for index range builder
-        template <size_t MIN, size_t N, size_t... Is>
-        struct range_builder;
-
-        // Base step
-        template <size_t MIN, size_t... Is>
-        struct range_builder<MIN, MIN, Is...> {
-            typedef index_list<Is...> type;
-        };
-
-        // Induction step
-        template <size_t MIN, size_t N, size_t... Is>
-        struct range_builder : public range_builder<MIN, N - 1, N - 1, Is...> {
-        };
-
-        // Meta-function that returns a [MIN, MAX) index range
-        template<size_t MIN, size_t MAX>
-        using index_range = typename detail::range_builder<MIN, MAX>::type;
-
-        template<class Ret>
-        struct FuncPtr {
-            const std::function<Ret()>* ptr;
-        };
-
-        template<class Ret, typename... Args>
-        struct FuncPtr<Ret(Args...)> {
-            const std::function<Ret(Args...)>* ptr;
-        };
-
         template<class T>
         static T* defaultClassAllocator() {
             return new T();
         }
 
-        template<class T, class... Args, size_t... Is>
-        static T* callConstructor(HSQUIRRELVM vm, FuncPtr<T*(Args...)>* funcPtr, index_list<Is...>) {
-            (void)vm; // Fix unused parameter warning.
-            return funcPtr->ptr->operator()(detail::pop<typename std::remove_reference<Args>::type>(vm, Is + 2)...);
+        template<class T>
+        static SQInteger classDestructor(SQUserPointer ptr, SQInteger size) {
+            T* p = static_cast<T*>(ptr);
+            delete p;
+            return 0;
         }
 
-        template<class T, size_t ndefparams, class... Args>
-        static SQInteger classAllocator(HSQUIRRELVM vm) {
-            constexpr std::size_t nparams = sizeof...(Args);
-
-            FuncPtr<T*(Args...)>* funcPtr;
-            sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
-            sq_pop(vm, 1);
-
-            removeDefaultArgumentValues<1, nparams, ndefparams>(vm);
-            T* p = callConstructor(vm, funcPtr, index_range<0, nparams>());
-            sq_setinstanceup(vm, 1, p);
-            sq_setreleasehook(vm, 1, &detail::classDestructor<T>);
-
-            sq_getclass(vm, 1);
-            sq_settypetag(vm, -1, reinterpret_cast<SQUserPointer>(typeid(T*).hash_code()));
-            sq_pop(vm, 1); // Pop class
-
-            return nparams;
+        template<class T>
+        static SQInteger classPtrDestructor(SQUserPointer ptr, SQInteger size) {
+            T** p = static_cast<T**>(ptr);
+            delete *p;
+            return 0;
         }
 
-        template<class T, size_t ndefparams, class... Args>
-        static SQInteger classAllocatorNoRelease(HSQUIRRELVM vm) {
-            constexpr std::size_t nparams = sizeof...(Args);
 
-            FuncPtr<T*(Args...)>* funcPtr;
-            sq_getuserdata(vm, -1, reinterpret_cast<void**>(&funcPtr), nullptr);
-            sq_pop(vm, 1);
-
-            removeDefaultArgumentValues<1, nparams, ndefparams>(vm);
-            T* p = callConstructor(vm, funcPtr, index_range<0, nparams>());
-            sq_setinstanceup(vm, 1, p);
-
-            sq_getclass(vm, 1);
-            sq_settypetag(vm, -1, reinterpret_cast<SQUserPointer>(typeid(T*).hash_code()));
-            sq_pop(vm, 1); // Pop class
-
-            return nparams;
-        }
-
-        template<class Ret, class... Args>
+        template<class Ret, typename... Args>
         static SQInteger funcReleaseHook(SQUserPointer p, SQInteger size) {
             auto funcPtr = reinterpret_cast<FuncPtr<Ret(Args...)>*>(p);
             delete funcPtr->ptr;
             return 0;
         }
-    }
 
-    /**
-     * @ingroup simplesquirrel
-     */
-    template<typename T>
-    inline T Object::to() const {
-        sq_pushobject(vm, obj);
-        try {
-            auto ret = detail::pop<T>(vm, -1);
-            sq_pop(vm, 1);
-            return ret;
-        } catch (...) {
-            sq_pop(vm, 1);
-            std::rethrow_exception(std::current_exception());
+        template<typename... Args>
+        static SQInteger defaultArgsReleaseHook(SQUserPointer p, SQInteger size) {
+            auto defaultArgsPtr = reinterpret_cast<DefaultArgsPtr<Args...>*>(p);
+            delete defaultArgsPtr->ptr;
+            return 0;
         }
     }
 #endif

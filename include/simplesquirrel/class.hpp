@@ -70,7 +70,7 @@ namespace ssq {
         * @returns Function object references the added function
         */
         template <typename Return, typename Object, typename... Args, typename... DefaultArgs>
-        Function addFunc(const char* name, const std::function<Return(Object*, Args...)>& func, const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
+        Function addFunc(const char* name, const std::function<Return(Object*, Args...)>& func, const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             if (vm == nullptr) throw RuntimeException(nullptr, "VM is not initialised");
             Function ret(vm);
             sq_pushobject(vm, obj);
@@ -88,7 +88,7 @@ namespace ssq {
         * @returns Function object references the added function
         */
         template <typename Return, typename Object, typename... Args, typename... DefaultArgs>
-        Function addFunc(const char* name, Return(Object::*memfunc)(Args...), const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
+        Function addFunc(const char* name, Return(Object::*memfunc)(Args...), const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             auto func = std::function<Return(Object*, Args...)>(std::mem_fn(memfunc));
             return addFunc(name, func, defaultArgs, isStatic);
         }
@@ -102,7 +102,7 @@ namespace ssq {
         * @returns Function object references the added function
         */
         template <typename Return, typename Object, typename... Args, typename... DefaultArgs>
-        Function addFunc(const char* name, Return(Object::*memfunc)(Args...) const, const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
+        Function addFunc(const char* name, Return(Object::*memfunc)(Args...) const, const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             auto func = std::function<Return(Object*, Args...)>(std::mem_fn(memfunc));
             return addFunc(name, func, defaultArgs, isStatic);
         }
@@ -117,7 +117,7 @@ namespace ssq {
         * @returns Function object references the added function
         */
         template<typename F, typename... DefaultArgs>
-        Function addFunc(const char* name, const F& lambda, const DefaultArguments<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
+        Function addFunc(const char* name, const F& lambda, const DefaultArgumentsImpl<DefaultArgs...> defaultArgs = {}, bool isStatic = false) {
             return addFunc(name, detail::make_function(lambda), defaultArgs, isStatic);
         }
         template<typename T, typename V>
@@ -172,7 +172,7 @@ namespace ssq {
 
             detail::bindUserData(vm, getter);
 
-            sq_newclosure(vm, &detail::func<0, V, 0, T*>::global, 1);
+            sq_newclosure(vm, &detail::funcBinding<0, V, DefaultArgumentsImpl<>, T*>::call, 1);
 
             if (SQ_FAILED(sq_newslot(vm, -3, isStatic))) {
                 throw RuntimeException(vm, "Failed to bind member variable getter function to class!");
@@ -190,7 +190,7 @@ namespace ssq {
 
             detail::bindUserData(vm, setter);
 
-            sq_newclosure(vm, &detail::func<0, void, 0, T*, V>::global, 1);
+            sq_newclosure(vm, &detail::funcBinding<0, void, DefaultArgumentsImpl<>, T*, V>::call, 1);
 
             if (SQ_FAILED(sq_newslot(vm, -3, isStatic))) {
                 throw RuntimeException(vm, "Failed to bind member variable setter function to class!");
