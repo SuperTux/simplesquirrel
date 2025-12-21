@@ -38,6 +38,7 @@ install/
 _book
 .vscode
 .publish
+.DS_Store
 
 # doxygen
 doxygen/*.md
